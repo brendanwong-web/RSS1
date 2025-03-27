@@ -5,9 +5,9 @@
 #include <Arduino.h>
 #include "soc/rtc.h"
 
-
+// Servo
 Servo servo1;
-int pos = 0;
+Servo servo2;
 
 // #define TEST
 // #define CALIBRATE
@@ -28,7 +28,8 @@ float distanceCm = 0;
 const int UNLCK_PIN = 5;
 
 // Servo
-const int SERVO_PIN = 23;
+const int SERVO_PIN1 = 22;
+const int SERVO_PIN2 = 23;
 
 // WiFi
 const char* ssid = "Swag Lord";
@@ -50,9 +51,12 @@ HX711 scale;
 
 void sendWeight() {
   char tempString[8];
-  dtostrf(scale.get_units(5), 1, 2, tempString);
-  client.publish("plastic", tempString); 
-  delay(2000);
+  int i;
+  for (i = 0; i < 90;i++) {
+    dtostrf(scale.get_units(5), 1, 2, tempString);
+    client.publish("plastic", tempString); 
+    delay(300);
+  }
 }
 
 void unlock() {
@@ -76,12 +80,16 @@ void openPlatform() {
 	// 	delay(15);             // waits 15ms for the servo to reach the position
 	// }
   servo1.write(180);
+  servo2.write(180);
   delay(400);
   servo1.write(90);
+  servo2.write(90);
   delay(2000);
   servo1.write(0);
+  servo2.write(0);
   delay(420);
   servo1.write(90);
+  servo2.write(90);
 
 }
 
@@ -142,14 +150,18 @@ void setup() {
 
   delay(1000);
 
-
+  // Servo1, servo2, servo3 setup
   ESP32PWM::allocateTimer(0);
 	ESP32PWM::allocateTimer(1);
 	ESP32PWM::allocateTimer(2);
 	ESP32PWM::allocateTimer(3);
 	servo1.setPeriodHertz(50);    // standard 50 hz servo
-	servo1.attach(SERVO_PIN, 900, 2100);
+	servo1.attach(SERVO_PIN1, 900, 2100);
   servo1.write(90);
+  servo2.setPeriodHertz(50);    // standard 50 hz servo
+	servo2.attach(SERVO_PIN2, 900, 2100);
+  servo2.write(90);
+
   digitalWrite(LED, LOW);
   Serial.println("setup finished");
 }
