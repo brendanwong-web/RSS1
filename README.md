@@ -22,6 +22,7 @@ git push origin main
 1. ```cd Documents/nicegui```
 2. Verify with ```pyenv virtualenvs```
 2. ```pyenv activate nicegui```
+4. Start with ```python3 main.py```
 
 ## If starting on different setup
 1. Run ```hostname -I``` in bash to get ip address
@@ -35,4 +36,3 @@ git push origin main
 ## NOTES
 1. No need for series resistor when using solenoid
 2. `tmuxinator start --local rss1`
-# RSS1
