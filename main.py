@@ -24,7 +24,7 @@ topics = ['logger', 'plastic']
 #DB
 
 # in reality users passwords would obviously need to be hashed
-unrestricted_page_routes = {'/login', '/register', '/test'}
+unrestricted_page_routes = {'/login', '/register', '/test', '/', '/registercard', '/login2'}
 
 #MQTT
 MQTT_HOST = '172.20.10.10'
@@ -36,6 +36,7 @@ class Data:
     material = ''
     points = ''
     user_id = ''
+    user_card = ''
     
     def __init__(self):
         self.weight = 12123
@@ -45,6 +46,8 @@ class Data:
         # print('written weight from class', self.weight)
     def update_points(self, uid):
         self.user_id = uid
+    def update_user(self, uc):
+        self.user_card = uc
         # self.points = int(self.weight) * 2
         # print('written data from class')
         
@@ -71,6 +74,7 @@ def update_data(x, t):
     global local_data
     local_data['weight'] = x
     data.update_weight(x, t)
+    data.update_user(x)
     
 def on_connect(client, userdata, flags, reason_code, properties):
     print(f"Connected with result code {reason_code}")
@@ -82,8 +86,6 @@ def on_connect(client, userdata, flags, reason_code, properties):
 
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    if msg.topic == "logger": 
-        return
     update_data(str(msg.payload.decode()), msg.topic)
     # print(msg.topic+" "+str(msg.payload.decode()))
     
@@ -126,17 +128,18 @@ def main_page() -> None:
         ui.navigate.to('/login')
 
     with ui.row().classes("absolute-center"):
-        with ui.column().classes('items-center mb-8'):
+        with ui.column().classes('items-center mb-8 mr-8'):
             ui.label(f'Hello {app.storage.user["username"]}!').classes('text-5xl mb-8')      
-            ui.label("Welcome to recycling sorting center")
+            ui.label("Welcome to the recycling sorting center")
             ui.link('Start recycling', "/test")
+            ui.link('register card', "/registercard")
             ui.button(on_click=logout, icon='logout').props('outline round').classes('mt-8')
-        with ui.column().classes('items-center mb-8'):   
-            with ui.row():  
-                ui.label("Total times recycled")
-                ui.label(result.total_items)
+        with ui.column().classes('items-center mb-8 ml-8 block max-w-sm p-6 bg-white border border-gray-200 rounded-lg shadow-sm '):   
+            with ui.row().classes('mb-8'):  
+                ui.label("Total times recycled:").classes('text-2xl')     
+                ui.label(result.total_items).classes('text-2xl font-bold')     
             with ui.row():
-                with ui.column():
+                with ui.column().classes('text-left'):
                     for i in range(len(transactions)):
                         with ui.row():
                             ui.label(transactions[i].get('material', 0))
@@ -186,7 +189,6 @@ def login() -> Optional[RedirectResponse]:
                 'created': authData.record.created,
             }
         )
-        data.update_points(authData.record.id)
         if not authData.is_valid:
             ui.notify("invalid login details")
         ui.navigate.to(app.storage.user.get('referrer_path', '/'))
@@ -199,6 +201,41 @@ def login() -> Optional[RedirectResponse]:
         with ui.row():
             ui.label("Don\'t have an account yet?")
             ui.link('Register', "/register")
+        with ui.row():
+            ui.label("Already registered? Tap your Card")
+            ui.link('Begin Recycling', "/login2")
+
+@ui.page('/login2')
+def login2() -> Optional[RedirectResponse]:
+    '''def try_login() -> None:  # local function to avoid passing username and password as arguments
+        if passwords.get(username.value) == password.value:
+            app.storage.user.update({'username': username.value, 'authenticated': True})
+            ui.navigate.to(app.storage.user.get('referrer_path', '/'))  # go back to where the user wanted to go
+        else:
+            ui.notify('Wrong username or password', color='negative')'''
+    mqttc.publish("unlck", "2", qos=1)
+    async def try_login() -> None:
+        test = data.user_card
+        filter_dic = {
+            "filter": f"UID ?= \"{test}\"",
+        }
+        result = client.collection('users').get_list(1, 10, filter_dic)
+        app.storage.user.update(
+            {
+                'username': result.items[0].username,
+                'authenticated': True,
+                'user_id': result.items[0].id,
+                'user_card': result.items[0].uid
+            }
+        )
+    
+        
+    with ui.card().classes('absolute-center'):
+        ui.label("Tap your card on the reader")
+        ui.button('Done', on_click=try_login)
+        with ui.row():
+            ui.link('Begin Recycling', "/")
+
 
 @ui.page('/register')
 def register() -> None:
@@ -269,6 +306,27 @@ def test():
             ui.button('Release', on_click=release_compartment)
             ui.button('Begin', on_click=begin_recycling)
             ui.button('Confirm data', on_click=set_transaction)
+        with ui.row(): 
+            ui.button(on_click=home, icon='home').props('outline round').classes('mt-8')
+        
+@ui.page('/registercard')
+def registercard():
+    def register_card():
+        mqttc.publish("unlck", "2", qos=1)
+    def home():
+        ui.navigate.to('/')
+    def update_acc():
+        record = client.collection("users").update(app.storage.user["user_id"], {
+            "uid": data.user_card
+        })
+    with ui.column().classes('absolute-center items-center mb-8'):
+        with ui.row():  
+                ui.label("Card: ").classes('text-2xl')
+                ui.label().bind_text_from(data, 'user_card').classes('text-2xl font-bold') 
+        with ui.row():
+            ui.button('Register Card', on_click=register_card)
+        with ui.row():
+            ui.button('Update Account', on_click=update_acc)
         with ui.row(): 
             ui.button(on_click=home, icon='home').props('outline round').classes('mt-8')
         
